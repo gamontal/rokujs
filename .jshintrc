@@ -1,0 +1,15 @@
+{
+   "node": true,
+   "esversion": 6,
+   "validthis": true,
+   "mocha": true,
+   "strict": true,
+   "unused":true,
+   "undef": true,
+   "curly": true,
+   "immed": true,
+   "loopfunc": false,
+   "trailing": true,
+   "white": true,
+   "indent": 2 
+}
