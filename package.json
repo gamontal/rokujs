@@ -20,7 +20,6 @@
   },
   "homepage": "https://github.com/gmontalvoriv/rokujs#readme",
   "dependencies": {
-    "lodash": "^4.16.5",
     "node-ssdp": "^2.9.0",
     "request": "^2.76.0",
     "xml2js": "^0.4.17"
