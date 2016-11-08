@@ -8,7 +8,7 @@
    "undef": true,
    "curly": true,
    "immed": true,
-   "loopfunc": false,
+   "loopfunc": true,
    "trailing": true,
    "white": true,
    "indent": 2 
