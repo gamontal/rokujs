@@ -1,6 +1,6 @@
 # [RokuJS](https://www.npmjs.com/package/rokujs) 
 
-> :tv: Control your Roku TV using NodeJS.
+> Control your Roku TV using NodeJS.
 
 This library will allow you to control your RokuTV remotely using NodeJS. It fetches data and sends commands using the [External Control Protocol (ECP) API](https://sdkdocs.roku.com/display/sdkdoc/External+Control+Guide).
 
@@ -11,8 +11,10 @@ This library will allow you to control your RokuTV remotely using NodeJS. It fet
   - [Discover nearby Roku devices](#discover-nearby-roku-devices)
   - [Device information](#device-information)
   - [Remote keypress](#remote-keypress)
-  - [Fetch apps](#fetch-apps)
+  - [Apps](#apps)
+  - [App icons](#app-icons)
   - [Launch apps](#launch-apps)
+  - [TV Channels](#tv-channels)
   - [Type text](#type-text)
 - [Todo](#todo)
 - [Licensing](#licensing)
@@ -133,7 +135,9 @@ roku.delay(1000);
 roku.press('volumeup');
 ```
 
-### Fetch apps
+### Apps
+
+#### Fetch all installed apps
 
 ```javascript
 roku.apps(function (err, apps) {
@@ -157,19 +161,84 @@ roku.apps(function (err, apps) {
 });
 ```
 
-### Launch apps
+#### Get information about a single app
+
+**By ID**
 
 ```javascript
-roku.apps(function (err, apps) {
-  apps.forEach(function (app) {
-    if (app.name === 'Netflix') {
-      roku.launch(app.id); // 12
-    }
-  });
+roku.apps({ id: 12 }, function (err, app) {
+  console.log(app);
+});
+```
+
+**By name**
+
+```javascript
+roku.apps({ name: 'Netflix' }, function (err, netflix) {
+  console.log(netflix);
+});
+```
+
+#### Get active app information
+
+```javascript
+roku.apps({ active: true }, function (err, app) {
+  console.log(app);
+});
+```
+
+### App icons
+
+```javascript
+const ws = fs.createWriteStream(__dirname + '/' + 12 + '.png');
+const rs = roku.iconStream(12);
+
+rs.pipe(ws); // => 12.png
+```
+
+### Launch apps
+
+**By ID**
+
+```javascript
+roku.launch({ id: 50539 }, function (err) {
+  if (err) {
+    console.log(err);
+  }
+});
+```
+
+**By name**
+
+```javascript
+roku.launch({ name: 'twitch'}, function (err) {
+  if (err) {
+    console.log(err);
+  }
+})
+```
+
+### TV Channels
+
+#### Fetch all TV channels
+
+```javascript
+roku.tvChannels(function (channels) {
+  console.log(channels);
+});
+```
+
+#### Get active TV channel information
+
+```javascript
+roku.tvChannels({ active: true }, function (channel) {
+  console.log(channel);
 });
 ```
 
 ### Type text
+
+**Note: Make sure you have an active field ready for input**
 
 ```javascript
 roku.type('HBO');
@@ -179,8 +248,7 @@ roku.type('HBO');
 
 - Tests
 - Command Line Interface
-- Launch apps by name
-- PNG icon streaming
+- Search
 
 ## Licensing
 
