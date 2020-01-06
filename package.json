@@ -21,6 +21,7 @@
   "homepage": "https://github.com/gmontalvoriv/rokujs#readme",
   "dependencies": {
     "async": "^2.1.2",
+    "inquirer": "^7.0.2",
     "node-ssdp": "^2.9.0",
     "request": "^2.76.0",
     "xml2js": "^0.4.17"
