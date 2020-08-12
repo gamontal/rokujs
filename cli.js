@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 const inquirer = require('inquirer');
 const Roku = require('./lib/roku');
 const colors = require('colors/safe');
@@ -71,27 +73,31 @@ const askConfig = async () => {
     })
 };
 
-const log = msg => console.log(colors.green(msg));
+const log = msg => console.log(colors.yellow(msg));
 const error = msg => console.log(colors.red(msg));
-const debug = msg => console.log(colors.yellow(msg.toUpperCase()));
+const debug = msg => console.log(colors.cyan(msg.toUpperCase()));
 
 const writeConfig = (path, json) => fs.writeFileSync(path, JSON.stringify(json));
 
 const showHelp = () => {
     const commands = [
-        'active                       list the active app for the currently selected Roku device',
-        'apps                         show all apps installed on the currently selected Roku device',
-        'config                       list TVs on your network and choose one',
+        'active, active-app           list the active app',
+        'active-channel               list the active channel',
+        'apps                         show all apps',
+        'app-info <app name or id>    show info for app',
+        'channels                     show all channels',
+        'config                       list TVs on your network and select one (happens by default on init)',
         'discover                     list all roku devices on the network',
         'help, h                      show this menu',
         'info                         list info for the currently selected Roku device',
-        'launch                       launch an app. This should be followed by an app name (see \'apps\')',
-        'reset                        clear the currently selected Roku device',
+        'launch <app name or id>      launch an app',
+        'reset                        clear the current config',
+        'type,text <words>            type text (must have keyboard or input selected)',
     ];
 
     const maxLen = 'reset, clear                 '.length;
 
-    console.log(colors.yellow(`
+    log(`
 ${colors.cyan('This is a CLI for the roku devices on your network.')}
 
 ${colors.cyan('Commands:')}
@@ -99,7 +105,7 @@ ${commands.join('\n')}
 
 ${colors.cyan('Keys: (all keys can be followed by number of presses)')}
 ${Roku.keys.map(key => `${key}${' '.repeat(maxLen - key.length)}${`press the "${key}" key`}`).join('\n')}
-`))
+`);
 }
 
 (async (cmd, appNameOrNumTimes) => {
@@ -114,20 +120,78 @@ ${Roku.keys.map(key => `${key}${' '.repeat(maxLen - key.length)}${`press the "${
 
     const deviceIp = config.selected.address || '';
     const device = deviceIp ? new Roku(deviceIp) : {};
+    const appNameOrNumTimesIsNumber = /\d+/.test(appNameOrNumTimes);
 
-    switch(cmd) {
-        case 'active':
-            device.apps({active: true}, (err, apps) => log(apps));
-            break;
+    try {
+        switch(cmd) {
+            case 'active-channel':
+                device.tvChannels({active: true}, log);
+                break;
 
-        case 'apps':
-            device.apps((err, apps) => log(apps));
-            break;
+            case 'active-app':
+            case 'active':
+                device.apps({active: true}, (err, apps) => {
+                    if (err) throw new Error(err);
+                    log(apps);
+                });
+                break;
 
-        case 'clear':
-            if (!fs.existsSync(LOCAL_CONFIG)) {
-                error('config file not found.');
-            }else {
+            case 'app-info':
+                if (!appNameOrNumTimes) {
+                    throw new Error("App name required.");
+                }
+
+                const appKey = appNameOrNumTimesIsNumber ? 'id': 'name';
+
+                device.apps({[appKey]: appNameOrNumTimes}, (err, apps) => {
+                    if (err) throw new Error(err);
+                    log(apps);
+                });
+                break;
+
+            case 'apps':
+                device.apps((err, apps) => {
+                    if (err) throw new Error(err);
+                    log(apps)
+                });
+                break;
+
+            case 'channels':
+                device.tvChannels(log);
+                break;
+
+            case 'discover':
+                debug('available devices:');
+                debug('+++++++++++++++++++++++++++++++++++++');
+                log(config.devices);
+                debug('+++++++++++++++++++++++++++++++++++++');
+                break;
+
+            case 'h':
+            case 'help':
+                showHelp();
+                break;
+
+            case 'info':
+                device.deviceInfo(log);
+                break;
+
+            case 'launch':
+                if (!appNameOrNumTimes) {
+                    throw new Error("App name required.");
+                }
+
+                const key = appNameOrNumTimesIsNumber ? 'id': 'name';
+
+                device.launch({[key]: appNameOrNumTimes}, err => {
+                    if (err) throw new Error(`Error launching app "${appNameOrNumTimes}"`);
+                });
+                break;
+
+            case 'reset':
+                if (!fs.existsSync(LOCAL_CONFIG)) {
+                    throw new Error('config file not found.');
+                }
                 inquirer.prompt([{
                     name: 'doDelete', 
                     type: 'confirm', 
@@ -139,46 +203,34 @@ ${Roku.keys.map(key => `${key}${' '.repeat(maxLen - key.length)}${`press the "${
                         debug('file deleted!');
                     }
                 });
-            }
-            break;
+                break;
 
-        case 'discover':
-            debug('available devices:');
-            debug('+++++++++++++++++++++++++++++++++++++');
-            log(config.devices);
-            debug('+++++++++++++++++++++++++++++++++++++');
-            break;
-
-        case 'h':
-        case 'help':
-            showHelp();
-            break;
-
-        case 'info':
-            device.deviceInfo(log);
-            break;
-
-        case 'launch':
-            const key = /\d+/.test(appNameOrNumTimes) === true ? 'id': 'name';
-            device.launch({[key]: appNameOrNumTimes}, err => {
-                if (err) error(`Error launching app "${appNameOrNumTimes}"`);
-            });
-            break;
-
-        default:
-            if (Roku.keys.includes(cmd)) {
-                const repeatNumTimes = parseInt(appNameOrNumTimes) ? appNameOrNumTimes : 1;
-
-                for (let i = 0; i < repeatNumTimes; i++) {
-                    setTimeout(() => {
-                        device.press(cmd)
-                    }, 200);
+            case 'type':
+            case 'text':
+                if (!appNameOrNumTimes.length) {
+                    throw new Error('Text required.');
                 }
-            }else {
-                console.log(colors.red(`\n"${cmd}" is an invalid command. Here's the help menu:\n`))
-                showHelp();
-            }
-            break;
+
+                device.type(appNameOrNumTimes);
+                break;
+
+            default:
+                if (Roku.keys.includes(cmd)) {
+                    const repeatNumTimes = appNameOrNumTimesIsNumber ? appNameOrNumTimes : 1;
+
+                    for (let i = 0; i < repeatNumTimes; i++) {
+                        setTimeout(() => {
+                            device.press(cmd)
+                        }, 200);
+                    }
+                }else {
+                    console.log(colors.red(`\n"${cmd}" is an invalid command. Here's the help menu:\n`))
+                    showHelp();
+                }
+                break;
+        }
+    } catch (err) {
+        error(err.message);
     }
 })(
     (process.argv[2] || ''),
