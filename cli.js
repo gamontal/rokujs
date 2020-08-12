@@ -87,9 +87,9 @@ const showHelp = () => {
         'app-info <app name or id>    show info for app',
         'channels                     show all channels',
         'config                       list TVs on your network and select one (happens by default on init)',
-        'discover                     list all roku devices on the network',
+        'discover                     list all Roku devices on the network',
         'help, h                      show this menu',
-        'info                         list info for the currently selected Roku device',
+        'info                         list info for the selected Roku device',
         'launch <app name or id>      launch an app',
         'reset                        clear the current config',
         'type,text <words>            type text (must have keyboard or input selected)',
@@ -228,7 +228,7 @@ ${Roku.keys
                         }, 200);
                     }
                 }else {
-                    console.log(colors.red(`\n"${cmd}" is an invalid command. Here's the help menu:\n`))
+                    error(`\n"${cmd}" is an invalid command. Here's the help menu:\n`);
                     showHelp();
                 }
                 break;
