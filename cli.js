@@ -104,7 +104,11 @@ ${colors.cyan('Commands:')}
 ${commands.join('\n')}
 
 ${colors.cyan('Keys: (all keys can be followed by number of presses)')}
-${Roku.keys.map(key => `${key}${' '.repeat(maxLen - key.length)}${`press the "${key}" key`}`).join('\n')}
+${Roku.keys
+    .map(key => `${key}${' '.repeat(maxLen - key.length)}${`press the "${key}" key`}`)
+    .sort((a, b) => a > b ? 1 : -1)
+    .join('\n')
+}
 `);
 }
 
