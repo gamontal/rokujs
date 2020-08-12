@@ -2,6 +2,7 @@ const inquirer = require('inquirer');
 const Roku = require('./lib/roku');
 const colors = require('colors/safe');
 const fs = require('fs');
+const { resolve } = require('path');
 
 const LOCAL_CONFIG = `./roku.json`;
 const HOME_CONFIG = `~/roku.json`;
@@ -29,13 +30,29 @@ const askConfig = async () => {
         Roku.discover(resolve);
     });
 
-    const prettyDevices = devices.map(device => {
-        return {
-            name: `${device.server} - ${device.address}`, 
-            value: device, 
-            short: device.address
-        }
-    });
+    const prettyDevices = [];
+    
+    for (let index in devices) {
+        const device = devices[index];
+        const instance = device.address ? new Roku(device.address) : null;
+
+        let info = await new Promise((resolve, reject) => instance
+            ? instance.deviceInfo(resolve)
+            : resolve({})
+        );
+
+        const name = info.friendly_name ? info.friendly_name : info.user_device_name;
+
+        prettyDevices.push({
+            name: name ? `${name} @ ${device.address}` : `${device.server} - ${device.address}`,
+            desription: info.description || '',
+            model: info.model_name || '',
+            serial: info.serial_number || '',
+            ip: device.address,
+            value: device,
+            device,
+        });
+    }
     
     return new Promise((resolve, reject) => {
         inquirer.prompt([
@@ -45,16 +62,10 @@ const askConfig = async () => {
                 message: 'Choose device to control',
                 choices: prettyDevices,
             },
-            {
-                name: 'format',
-                type: 'list',
-                message: 'Choose output format',
-                choices: ['JSON', 'Pretty'],
-            }
         ]).then(answers => {
             resolve({
                 ...answers,
-                ...{devices},
+                ...{devices: prettyDevices},
             });
         });
     })
@@ -66,7 +77,32 @@ const debug = msg => console.log(colors.yellow(msg.toUpperCase()));
 
 const writeConfig = (path, json) => fs.writeFileSync(path, JSON.stringify(json));
 
-(async (arg1, arg2, arg3) => {
+const showHelp = () => {
+    const commands = [
+        'active                       list the active app for the currently selected Roku device',
+        'apps                         show all apps installed on the currently selected Roku device',
+        'config                       list TVs on your network and choose one',
+        'discover                     list all roku devices on the network',
+        'help, h                      show this menu',
+        'info                         list info for the currently selected Roku device',
+        'launch                       launch an app. This should be followed by an app name (see \'apps\')',
+        'reset                        clear the currently selected Roku device',
+    ];
+
+    const maxLen = 'reset, clear                 '.length;
+
+    console.log(colors.yellow(`
+${colors.cyan('This is a CLI for the roku devices on your network.')}
+
+${colors.cyan('Commands:')}
+${commands.join('\n')}
+
+${colors.cyan('Keys: (all keys can be followed by number of presses)')}
+${Roku.keys.map(key => `${key}${' '.repeat(maxLen - key.length)}${`press the "${key}" key`}`).join('\n')}
+`))
+}
+
+(async (cmd, appNameOrNumTimes) => {
     let config = readConfig();
 
     if (config === false) {
@@ -79,9 +115,16 @@ const writeConfig = (path, json) => fs.writeFileSync(path, JSON.stringify(json))
     const deviceIp = config.selected.address || '';
     const device = deviceIp ? new Roku(deviceIp) : {};
 
-    switch(arg1) {
+    switch(cmd) {
+        case 'active':
+            device.apps({active: true}, (err, apps) => log(apps));
+            break;
+
+        case 'apps':
+            device.apps((err, apps) => log(apps));
+            break;
+
         case 'clear':
-        case 'reset':
             if (!fs.existsSync(LOCAL_CONFIG)) {
                 error('config file not found.');
             }else {
@@ -105,20 +148,10 @@ const writeConfig = (path, json) => fs.writeFileSync(path, JSON.stringify(json))
             log(config.devices);
             debug('+++++++++++++++++++++++++++++++++++++');
             break;
-                
-        case '':
+
         case 'h':
         case 'help':
-            break;
-
-        case 'ls':
-        case 'apps':
-            device.apps((err, apps) => log(apps));
-            break;
-
-        case 'active':
-        case 'active-app':
-            device.apps({active: true}, (err, apps) => log(apps));
+            showHelp();
             break;
 
         case 'info':
@@ -126,22 +159,28 @@ const writeConfig = (path, json) => fs.writeFileSync(path, JSON.stringify(json))
             break;
 
         case 'launch':
-            const key = /\d+/.test(arg2) === true ? 'id': 'name';
-            device.launch({[key]: arg2}, err => {
-                if (err) error(`Error launching app "${arg2}"`);
+            const key = /\d+/.test(appNameOrNumTimes) === true ? 'id': 'name';
+            device.launch({[key]: appNameOrNumTimes}, err => {
+                if (err) error(`Error launching app "${appNameOrNumTimes}"`);
             });
             break;
 
         default:
-            if (Roku.keys.includes(arg1)) {
-                device.press(arg1);
+            if (Roku.keys.includes(cmd)) {
+                const repeatNumTimes = parseInt(appNameOrNumTimes) ? appNameOrNumTimes : 1;
+
+                for (let i = 0; i < repeatNumTimes; i++) {
+                    setTimeout(() => {
+                        device.press(cmd)
+                    }, 200);
+                }
             }else {
-                error(`Unknown command "${arg1}"`)
+                console.log(colors.red(`\n"${cmd}" is an invalid command. Here's the help menu:\n`))
+                showHelp();
             }
             break;
     }
 })(
-    (process.argv[2] || '').toLowerCase(),
+    (process.argv[2] || ''),
     (process.argv[3] || ''),
-    (process.argv[4] || ''),
 )
